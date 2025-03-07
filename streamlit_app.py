@@ -1,151 +1,81 @@
 import streamlit as st
-import pandas as pd
-import math
-from pathlib import Path
-
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
-
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
-
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
-
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+from PIL import Image, ImageDraw, ImageFont
+import io
+def generate_image(text):
+    """生成白字黑底图片"""
+    image_size = (1600, 1600)
+    # 提高图片分辨率以提升字体清晰度
+    high_res_size = (image_size[0] * 2, image_size[1] * 2)
+    # 根据字符数量确定字体大小
+    char_count = len(text)
+    if char_count == 1:
+        font_size = 900
+    elif char_count == 2:
+        font_size = 700
+    elif char_count == 3:
+        font_size = 500
+    elif char_count == 4:
+        font_size = 400
+    elif char_count == 5:
+        font_size = 320
+    elif char_count == 6:
+        font_size = 280
+    elif char_count == 7:
+        font_size = 240
+    elif char_count == 8:
+        font_size = 200
+    else:
+        return None
+    high_res_font_size = font_size * 2
+    img = Image.new('RGB', high_res_size, color='black')
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default(size=high_res_font_size)
+    # 计算文字位置（兼容 Pillow 10.0+）
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[0]
+    x = (high_res_size[0] - text_width) // 2
+    # 微调垂直位置
+    y = (high_res_size[1] - text_height) // 2 - high_res_font_size // 10
+    # 模拟字体加粗，多次绘制文字并进行微小偏移
+    offsets = [(0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)]
+    for offset_x, offset_y in offsets:
+        draw.text((x + offset_x, y + offset_y), text, fill='white', font=font)
+    # 将高分辨率图片缩放到所需尺寸
+    img = img.resize(image_size, Image.LANCZOS)
+    return img
+# 网页界面
+st.title("📷 Socrates 头像生成器")
+st.markdown("输入文字 → 自动生成居中图片 → 支持下载")
+# 主界面
+user_input = st.text_input("输入要生成图片的文字（最多 8 个字符）：", "8")
+if len(user_input) > 8:
+    st.error("输入的字符数量不能超过 8 个，请重新输入。")
+else:
+    if user_input:
+        try:
+            # 生成图片
+            img = generate_image(user_input)
+            if img:
+                # 显示预览
+                st.image(img, caption="预览效果", use_container_width=True)
+                # 下载功能
+                img_bytes = io.BytesIO()
+                img.save(img_bytes, format='PNG')
+                st.download_button(
+                    label="⬇️ 下载图片",
+                    data=img_bytes.getvalue(),
+                    file_name='custom_image.png',
+                    mime='image/png'
+                )
+            else:
+                st.error("输入的字符数量不符合要求，请重新输入。")
+        except Exception as e:
+            st.error(f"生成图片时出错: {str(e)}")
+# 使用提示
+st.markdown("""
+### 使用说明：
+1. 在输入框输入你的编号
+2. 点击下载按钮保存图片
+3. 更换至 Lark 头像
+""")
