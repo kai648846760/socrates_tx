@@ -1,6 +1,8 @@
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import io
+
+
 def generate_image(text):
     """生成白字黑底图片"""
     image_size = (1600, 1600)
@@ -44,8 +46,10 @@ def generate_image(text):
     # 将高分辨率图片缩放到所需尺寸
     img = img.resize(image_size, Image.LANCZOS)
     return img
+
+
 # 网页界面
-st.title("📷 Socrates 头像生成器")
+st.title(f"📷 {st.secrets["name"]} 头像生成器")
 st.markdown("输入文字 → 自动生成居中图片 → 支持下载")
 # 主界面
 user_input = st.text_input("输入要生成图片的文字（最多 8 个字符）：", "8")
